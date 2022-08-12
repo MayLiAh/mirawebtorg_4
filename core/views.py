@@ -13,6 +13,8 @@ from core.models import *
 from django.db.models import Avg
 import json
 
+
+
 # def home(request):
 #     return render(request, "home.html")
 
@@ -49,24 +51,24 @@ class ProductDetailView(DetailView):
     # def calc_average_rating(self):
     #     rounding_step = 0.5
 
-
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
         data["pictures_list"] = Photo.objects.filter(product_connected=self.get_object())
         data["comments"] = Review.objects.filter(product_connected=self.get_object())
-        # send_mail('Другое Тест письмо',
-        #           'Если это сработает, то это замечательно!',
-        #           settings.EMAIL_HOST_USER,
-        #           ['skh4342@gmail.com'])
         if self.request.user.is_authenticated:
             data['comment_form'] = CommentForm(instance=self.request.user)
         else:
             data['comment_form'] = CommentForm()
 
-        if Review.objects.filter(product_connected=self.get_object()).exists():  #попробовать избавиться от постоянной проверки в базе данных
-            average_rt = Review.objects.filter(product_connected=self.get_object()).aggregate(Avg('rating'))
-            avr_intermediate = str(average_rt.get("rating__avg")).replace(",", ".")
-            data["average_rating"] = self.step_round(float(avr_intermediate))
+        # if Review.objects.filter(
+        #         product_connected=self.get_object()).exists():  # попробовать избавиться от постоянной проверки в базе данных
+        #     average_rt = Review.objects.filter(product_connected=self.get_object()).aggregate(Avg('rating'))
+        #     avr_intermediate = str(average_rt.get("rating__avg")).replace(",", ".")
+        #     data["average_rating"] = self.step_round(float(avr_intermediate))
+
+        if Review.objects.filter(product_connected=self.get_object()).exists():
+            ...
+
         else:
             data["average_rating"] = 0
 
@@ -74,48 +76,39 @@ class ProductDetailView(DetailView):
 
     def post(self, request, *args, **kwargs):
         if self.request.user.is_authenticated:
-            print("пользователь авторизован")
-            body_data = json.loads(request.body.decode('utf-8'))
-            key_ = body_data['key']
-            if request.headers.get('x-requested-with') == 'XMLHttpRequest' and key_ == "AddToBasket":
-                print("Это запрос добавить в корзину")
-                this_user = self.request.user
-                this_product = Product.objects.get(id=self.get_object().id)
-                product_to_basket = ShoppingCart(
-                    user=this_user,
-                    product=this_product
-                )
-                if ShoppingCart.objects.filter(user=this_user, product=this_product).exists():
-                    data_to_response = {"message": "product_already_exists"}
-                else:
-                    data_to_response = {"message": "product_added"}
-                    product_to_basket.save()
-                return HttpResponse(json.dumps(data_to_response))
-            if "product_detail_form" in request.POST:  #== 'add_comment_form_two':
-                print("Запрос добавить комментарий")
+            this_user = self.request.user
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                body_data = json.loads(request.body.decode('utf-8'))
+                key_ = body_data['key']
+                if key_ == "AddToBasket":
+                    this_product = Product.objects.get(id=self.get_object().id)
+                    product_to_basket = ShoppingCart(
+                        user=this_user,
+                        product=this_product
+                    )
+                    if ShoppingCart.objects.filter(user=this_user, product=this_product).exists():
+                        data_to_response = {"message": "product_already_exists"}
+                    else:
+                        data_to_response = {"message": "product_added"}
+                        product_to_basket.save()
+                    return HttpResponse(json.dumps(data_to_response))
+
+            if "product_detail_form" in request.POST:  # == 'add_comment_form_two':
                 form = CommentForm(request.POST)
                 if form.is_valid():
-                    print("Форма валидна")
-
                     comment = Review(review=request.POST.get("review"),
                                      rating=request.POST.get("rating"),
                                      author=self.request.user,
                                      product_connected=self.get_object())
                     comment.save()
-                    print(form.errors(), ":ошибки")
                     # self.calc_average_rating()
                 else:
-                    print(form.errors(), ":ошибки и сработало иначе")
-                    # raise Http404
+                    print("_____________form_error_____________")
                 return redirect("product_detail", *args, **kwargs)
         else:
-            print(" Пользователь не авторизован")
             response = HttpResponse(json.dumps({'message': "UserAuthenticationFAIL"}),
                                     content_type='application/json', status=401)
             return response
-
-
-
 
 
 class AddProductView(TemplateView):
@@ -123,32 +116,27 @@ class AddProductView(TemplateView):
 
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
-        subcategory_form = ChoiseSubcategoryForm
-        data['ChoiseSubcategoryForm'] = subcategory_form
+        all_categories = Category.objects.filter(is_sub_category=False)
+        get = self.request.GET
+        if "next_btn" in get:
+            selected_id= get.get("category_selector")
+            all_categories = Category.objects.filter(parent = selected_id)
+            if len(all_categories) > 0:               #Если есть основные подкатегории
+                data["base_categories"] = all_categories
+            else:
+                subcategories_id = SubcategoryCategories.objects.filter(category_id = selected_id)
+
+        else:
+            data["base_categories"] = all_categories
         return data
 
-    def post(self, request, *args, **kwargs):
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            ...
-        print(request.POST, "словарь Post")
-        print(request.headers, 'это headers')
 
-        # current_slug = request.POST.get("slug")
-        # product = Product(title=request.POST.get("title"),
-        #                   description=request.POST.get("description"),
-        #                   owner=self.request.user,
-        #                   slug=current_slug,
-        #                   price=request.POST.get("price"),
-        #                   image1=request.FILES.get("image1"),
-        #                   mark=request.POST.get("mark")
-        #                   )
-        # product.save()
-        # product_object = Product.objects.get(slug = current_slug)
+    def post(self, request, *args, **kwargs):
         # photos = request.FILES.getlist('get_images')
         # for photo in photos:
         #     Photo(image = photo, product_connected=product_object).save()
-
-        return HttpResponse(json.dumps({"success":True}),content_type='application/json')
+        # return HttpResponse(json.dumps({"success": True}), content_type='application/json')
+        return HttpResponse()
 
 
 class BasketView(ListView):
@@ -161,12 +149,13 @@ class BasketView(ListView):
         user = self.request.user
         if user.is_authenticated:
             if ShoppingCart.objects.filter(user_id=user).exists():
-                ShoppingCart.objects.all().filter(user=user)
-                products = []
+                products: list = []
                 for item in data["basket"]:
                     product_id = item.product.id
-                    x = Product.objects.get(id=product_id)
-                    products.append(x)
+                    product = Product.objects.get(id=product_id)
+                    product.quantity = item.quantity
+                    product.id_in_cart = item.id
+                    products.append(product)
                 data["products"] = products
         #     else:
         #         data["my_errors"] = "no_products_found"
@@ -174,3 +163,36 @@ class BasketView(ListView):
         #     data["my_errors"] = "is_not_authenticated"
         return data
 
+    @staticmethod
+    def count_general_product_price(item_quantity:int, product_id_in_cart:int) -> int:
+        product_connected_id = ShoppingCart.objects.get(id =product_id_in_cart).product_id
+        price_for_one_product = Product.objects.get(id = product_connected_id).price
+        product_general_price = item_quantity * price_for_one_product
+        return product_general_price
+
+    def post(self, request, *args, **kwargs):
+        response_data = {}
+        if self.request.user.is_authenticated:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                body_data = json.loads(request.body.decode('utf-8'))
+                key_ = body_data['key']
+                if key_ == "recalc":
+                    if body_data['item_quantity'] != "" and body_data['item_quantity'] is not None:
+                        try:
+                            received_item_quantity: int = int(body_data['item_quantity'])
+                            if received_item_quantity < 999 > 0 and isinstance(received_item_quantity, int):
+                                received_item_id_in_cart = int(body_data['item_id_in_cart'])
+                                shopping_cart = ShoppingCart.objects.filter(id=received_item_id_in_cart)
+                                shopping_cart.update(quantity=received_item_quantity)
+                                response_data["product_price"] = self.count_general_product_price(received_item_quantity, received_item_id_in_cart)
+                            else:
+                                response_data["message"] = "Максимальное число для заказа 999"
+                        except ValueError:
+                            raise ValueError("Невозможно преобразовать в число")
+                    else:
+                        response_data["message"] = "the_field_should_not_be_empty"
+        else:
+            response_data["message"] = "UserAuthenticationFAIL"
+        return HttpResponse(json.dumps(response_data,default=str), content_type='application/json')  # json.dumps(ensure_ascii=False,)
+
+#Сделать модальное окно вывода ошибок на сайте

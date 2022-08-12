@@ -12,6 +12,10 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class Category(models.Model):
     category_name = models.CharField(max_length=30)
     sub_categories = models.ManyToManyField("self", blank=True)
+    is_sub_category = models.BooleanField(default=False)
+    parent = models.IntegerField()
+
+
 
     def __str__(self):
         return self.category_name
@@ -38,7 +42,7 @@ class Product(models.Model):
     mark = models.CharField(max_length=50, blank=True)
     available = models.BooleanField(default=True)  # доступность товара в магазине True or False
     sub_category = models.ManyToManyField(SubCategory)
-    rating = models.DecimalField(max_digits=2, decimal_places=1,default=0)
+    global_rating = models.DecimalField(max_digits=65, decimal_places=1, default=0)
 
     def __str__(self):
         return self.title
@@ -82,7 +86,7 @@ class Review(models.Model):
     product_connected = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
     creation_date = models.DateTimeField(auto_now_add=True)
     last_update_time = models.DateTimeField(auto_now=True)
-    rating = models.IntegerField(default=0, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    rating = models.DecimalField(max_digits=5, decimal_places=0)
 
     def __str__(self):
         return f"{self.product_connected}"  # , self.author
@@ -91,7 +95,7 @@ class Review(models.Model):
 class ShoppingCart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    count = models.IntegerField(validators=[MaxValueValidator(999)], default=1)
+    quantity = models.IntegerField(validators=[MaxValueValidator(999)], default=1)
     status = models.CharField(max_length=100)
 
     def __str__(self):

@@ -146,6 +146,11 @@
     line-height: 32px;
     font-weight: 700;
 }
+.basket-item_price> span{
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: 700;
+}
 
 
 @media (min-width: 1024px){
@@ -153,3 +158,12 @@
     width: calc(100% - 195px - 145px - 5*16px);
 }
 }
+input[type="number"] {
+	-moz-appearance: textfield;
+	-webkit-appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+	display: none;
+}
+

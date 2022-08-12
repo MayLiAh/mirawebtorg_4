@@ -22,8 +22,8 @@ class CommentForm(forms.ModelForm):
         (4, 4),
         (5, 5),
     )
-    rating = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple,
-                                       choices=OPTIONS)
+    rating = forms.ChoiceField(widget=forms.RadioSelect,
+                               choices=OPTIONS)  # Заменим чекбоксы на радио-кнопки (чтобы было можно выбрать только один вариант)
 
     class Meta:
         model = Review
@@ -48,6 +48,7 @@ class AddProductForm(forms.ModelForm):
     class Meta:
         model = Product
         fields = ["title", "description", "slug", "price", "image1", "mark", "sub_category"]
+
 
 
 class ChoiseSubcategoryForm(forms.ModelForm):

@@ -2,36 +2,38 @@
 {% load static %}
 
 {% block content %}
-    <link rel="stylesheet" type="text/css" href="{% static 'css/basket.css'%}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/basket.css' %}">
     <div class="main_list">
         <div class="basket_main_container">
             <div class="basket-product_sections">
                 <div class="basket-header_tabs">
                     <h1 class="basket-header_tabs--basket_title">Корзина</h1>
                 </div>
-{#                Сделать проверку на наличие товара#}
+                {#                Сделать проверку на наличие товара#}
                 {% for product in products %}
                     <div class="basket_section">
                         <div class="basket_section_item_good">
                             {% if product.image1 %}
                                 <a href=""><img src="{{ product.image1.url }}" alt="Ошибка загрузки фотографии"
-                                    class="basket_product_image"></a>  {# Первая ссылка для предпросмотра #}
+                                                class="basket_product_image"></a>  {# Первая ссылка для предпросмотра #}
                             {% else %}
                                 <img src="{% static 'css/img_load_error.png' %}" alt="Ошибка загрузки"
                                      class="basket_product_image">
                             {% endif %}
-                            <a href=""><p class="basket_product_title">{{ product.title }}</p></a>  {# Вторая ссылка  #}
+                            <a href=""><p class="basket_product_title">{{ product.title }}</p></a> {# Вторая ссылка  #}
                             <div class="basket-product_owner_block">
                                 <p class="basket_product_owner">"{{ product.owner }}"</p>
                             </div>
                         </div>
                         <div class="basket-item_price_block">
-                            <span class="basket-item_price">{{ product.price }} &#8381;</span>
+                            <span class="basket-item_price">{{ product.price }} <span>&#8381;</span></span>
                         </div>
+                        <input type="hidden" value="{{ product.id_in_cart }}">
                         <div class="basket_product_buttons">
                             <div class="counter_buttons__counter">
                                 <button class="counter_BTN" id="counter_btn_minus"></button>
-                                <input type="text" class="counter_display" maxlength="3" value="1">
+                                <input type="number" class="counter_display" maxlength="3"
+                                       name="{{ product.id_in_cart }}" value="{{ product.quantity }}" max="999" min="0">
                                 <button class="counter_BTN" id="counter_btn_plus"></button>
                             </div>
                             <div class="delete_btn">
@@ -46,6 +48,63 @@
     </div>
 
 
+    <script>
+        $(`.counter_display`).on('change', function () {
+                let item_id_in_cart = $(this).attr('name')
+                let item_quantity = $(this).val()
+                let data = {'item_id_in_cart': item_id_in_cart, "item_quantity": item_quantity, "key": "recalc"}
+                send_ajax(data)
+                console.log( + "это мой принт")
+            }
+        )
 
+        function send_ajax(data) {
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        // Does this cookie string begin with the name we want?
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            const csrftoken = getCookie('csrftoken');
+
+            $.ajax({
+                url: 'http://127.0.0.1:8000' + '{{ request.path }}',
+                type: "POST",
+                headers: {'X-CSRFToken': csrftoken},
+                data: JSON.stringify(data),
+                dataType: 'json',
+                contentType: "application/json;charset=utf-8"
+            })
+                .done(function (data) {
+                    console.log(data);
+                    console.log('ошибок нет')
+                })
+                .fail(function (data, jqXHR) {
+                    console.log("Запрос не сработал " + jqXHR.status);
+                    if (jqXHR.status && jqXHR.status === 500) {
+                        console.log(jqXHR.status)
+                        alert("Возникла ошибка на стороне сервера, попробуйте позже. Код ошибки" + " " + jqXHR.status)
+                    }
+                    if (jqXHR.status) {
+                        console.log(jqXHR.status)
+                    }
+                    if (jqXHR.status && jqXHR.status === 401) {
+                        console.log(jqXHR.status)
+                        alert("Пользователь не авторизован. Код ошибки" + " " + jqXHR.status)
+                    }
+                })
+        }
+
+    </script>
 
 {% endblock %}
