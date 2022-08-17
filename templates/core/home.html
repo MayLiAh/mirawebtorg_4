@@ -22,17 +22,38 @@
                                 <p>Звездочки</p>
                                 <p>Доставка:завтра</p>
                             </div>
-                            <div class="item-description-bottom_btns">
-                                <form method="POST">
-                                    {% csrf_token %}
-                                    <input type="hidden" value="{{ product.id }}" name="product_list_view_id">
-                                    <button class="detail_button"><span class="Button-inner-"></span>Добавить в корзину</button>
-                                </form>
-                            </div>
                         </a>
+                            <div class="item-description-bottom_btns">                        {# Тут пока только одна кнопка #}
+                                <button class="home_page-add_to_basket_btn" name="{{ product.id }}">Добавить в корзину</button>
+                            </div>
                     </div>
                 {% endfor %}
             </div>
         </div>
     </div>
+
+    <div class="product_added_into_basket_msg">
+            <div class="message_product_added">
+                Товар добавлен в корзину
+            </div>
+            <div class="message_product_already_added">
+                Товар уже в корзине
+            </div>
+            <div class="modal_window_btns">
+                <span><a class="button_to_basket" href="{% url 'basket' %}">Перейти к корзине</a></span>
+                <button class="button_stay_here">
+                    Остаться
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="dialog_window_background"></div>
+
+    <script>
+        $(".home_page-add_to_basket_btn").on('click',function (){
+            let product_id = $(this).attr('name')
+            let data = {"key":"AddToBasket_home","product_id": product_id}
+            send_ajax(data, "{{ request.path }} ")
+        })
+    </script>
 {% endblock %}

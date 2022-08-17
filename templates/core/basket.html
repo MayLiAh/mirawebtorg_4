@@ -11,7 +11,7 @@
                 </div>
                 {#                Сделать проверку на наличие товара#}
                 {% for product in products %}
-                    <div class="basket_section">
+                    <div class="basket_section" id="{{ product.id_in_cart }}">
                         <div class="basket_section_item_good">
                             {% if product.image1 %}
                                 <a href=""><img src="{{ product.image1.url }}" alt="Ошибка загрузки фотографии"
@@ -37,7 +37,7 @@
                                 <button class="counter_BTN" id="counter_btn_plus"></button>
                             </div>
                             <div class="delete_btn">
-                                <button class="basket-delete_product_from_basket_btn"><span>Удалить</span></button>
+                                <button name="{{ product.id_in_cart }}" class="basket-delete_product_from_basket_btn"><span>Удалить</span></button>
                             </div>
                         </div>
 
@@ -47,64 +47,23 @@
         </div>
     </div>
 
-
     <script>
+        {#Отправка ajax по изменению колличества#}
         $(`.counter_display`).on('change', function () {
                 let item_id_in_cart = $(this).attr('name')
                 let item_quantity = $(this).val()
                 let data = {'item_id_in_cart': item_id_in_cart, "item_quantity": item_quantity, "key": "recalc"}
-                send_ajax(data)
-                console.log( + "это мой принт")
+                send_ajax(data, {{ request.path }})
             }
         )
-
-        function send_ajax(data) {
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        // Does this cookie string begin with the name we want?
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
-                }
-                return cookieValue;
+         {#Кнопка удаления товара из корзины#}
+        $(`.basket-delete_product_from_basket_btn`).on('click', function () {
+                let item_id_in_cart = $(this).attr('name')
+                let data = {'item_id_in_cart': item_id_in_cart, "key": "delete"}
+                send_ajax(data, {{ request.path }})
+                $(this).parents('basket_section').remove()
             }
-
-            const csrftoken = getCookie('csrftoken');
-
-            $.ajax({
-                url: 'http://127.0.0.1:8000' + '{{ request.path }}',
-                type: "POST",
-                headers: {'X-CSRFToken': csrftoken},
-                data: JSON.stringify(data),
-                dataType: 'json',
-                contentType: "application/json;charset=utf-8"
-            })
-                .done(function (data) {
-                    console.log(data);
-                    console.log('ошибок нет')
-                })
-                .fail(function (data, jqXHR) {
-                    console.log("Запрос не сработал " + jqXHR.status);
-                    if (jqXHR.status && jqXHR.status === 500) {
-                        console.log(jqXHR.status)
-                        alert("Возникла ошибка на стороне сервера, попробуйте позже. Код ошибки" + " " + jqXHR.status)
-                    }
-                    if (jqXHR.status) {
-                        console.log(jqXHR.status)
-                    }
-                    if (jqXHR.status && jqXHR.status === 401) {
-                        console.log(jqXHR.status)
-                        alert("Пользователь не авторизован. Код ошибки" + " " + jqXHR.status)
-                    }
-                })
-        }
-
+        )
     </script>
 
 {% endblock %}

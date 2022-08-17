@@ -14,7 +14,6 @@ from django.db.models import Avg
 import json
 
 
-
 # def home(request):
 #     return render(request, "home.html")
 
@@ -22,20 +21,33 @@ import json
 #     product_list = Product.objects.all()
 #     return render(request, "home.html", {'product_list': product_list})
 
+
 class ProductListView(ListView):
     model = Product  # Указываем классовому обработчику с какой моделью (базы данных) работать
     template_name = "core/home.html"
     context_object_name = "product_list"
 
     def post(self, request, *args, **kwargs):
-        product = Product.objects.get(id=int(request.POST.get("product_list_view_id")))
-        product_to_basket = ShoppingCart(
-            user=self.request.user,
-            product=product
-
-        )
-        product_to_basket.save()
-        return redirect("home")
+        data_to_response = dict
+        if self.request.user.is_authenticated:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                body_data = json.loads(request.body.decode('utf-8'))
+                key_ = body_data['key']
+                if key_ == "AddToBasket_home":
+                    selected_product_id = int(body_data['product_id'])
+                    this_product = Product.objects.get(id=selected_product_id)
+                    if ShoppingCart.objects.filter(user=self.request.user, product=this_product).exists():
+                        data_to_response = {"basket_dialog_response": "product_already_exists"}
+                    else:
+                        data_to_response = {"basket_dialog_response": "product_added"}
+                        product_to_basket = ShoppingCart(
+                            user=self.request.user,
+                            product=this_product
+                        )
+                        product_to_basket.save()
+        else:
+            data_to_response["callback"] = "UserAuthenticationFAIL"
+        return HttpResponse(json.dumps(data_to_response))
 
 
 class ProductDetailView(DetailView):
@@ -82,14 +94,14 @@ class ProductDetailView(DetailView):
                 key_ = body_data['key']
                 if key_ == "AddToBasket":
                     this_product = Product.objects.get(id=self.get_object().id)
-                    product_to_basket = ShoppingCart(
-                        user=this_user,
-                        product=this_product
-                    )
                     if ShoppingCart.objects.filter(user=this_user, product=this_product).exists():
-                        data_to_response = {"message": "product_already_exists"}
+                        data_to_response = {"basket_dialog_response": "product_already_exists"}
                     else:
-                        data_to_response = {"message": "product_added"}
+                        data_to_response = {"basket_dialog_response": "product_added"}
+                        product_to_basket = ShoppingCart(
+                            user=this_user,
+                            product=this_product
+                        )
                         product_to_basket.save()
                     return HttpResponse(json.dumps(data_to_response))
 
@@ -106,7 +118,7 @@ class ProductDetailView(DetailView):
                     print("_____________form_error_____________")
                 return redirect("product_detail", *args, **kwargs)
         else:
-            response = HttpResponse(json.dumps({'message': "UserAuthenticationFAIL"}),
+            response = HttpResponse(json.dumps({'callback': "UserAuthenticationFAIL"}),
                                     content_type='application/json', status=401)
             return response
 
@@ -124,14 +136,15 @@ class AddProductView(TemplateView):
             if len(all_categories) > 0:               #Если есть основные подкатегории
                 data["base_categories"] = all_categories
             else:
-                subcategories_id = SubcategoryCategories.objects.filter(category_id = selected_id)
-
+                # subcategories_id = SubcategoryCategories.objects.filter(category_id = selected_id)
+                ...
         else:
             data["base_categories"] = all_categories
         return data
 
 
-    def post(self, request, *args, **kwargs):
+    @staticmethod
+    def post(request, *args, **kwargs):
         # photos = request.FILES.getlist('get_images')
         # for photo in photos:
         #     Photo(image = photo, product_connected=product_object).save()
@@ -179,20 +192,30 @@ class BasketView(ListView):
                 if key_ == "recalc":
                     if body_data['item_quantity'] != "" and body_data['item_quantity'] is not None:
                         try:
-                            received_item_quantity: int = int(body_data['item_quantity'])
-                            if received_item_quantity < 999 > 0 and isinstance(received_item_quantity, int):
+                            received_item_quantity = int(body_data['item_quantity'])
+                            if received_item_quantity < 999 > 0 and isinstance(received_item_quantity, int):   # возможно, что проверка на int бесполезна
                                 received_item_id_in_cart = int(body_data['item_id_in_cart'])
                                 shopping_cart = ShoppingCart.objects.filter(id=received_item_id_in_cart)
                                 shopping_cart.update(quantity=received_item_quantity)
                                 response_data["product_price"] = self.count_general_product_price(received_item_quantity, received_item_id_in_cart)
                             else:
-                                response_data["message"] = "Максимальное число для заказа 999"
+                                response_data["warning"] = "Максимальное число для заказа 999"
                         except ValueError:
                             raise ValueError("Невозможно преобразовать в число")
                     else:
-                        response_data["message"] = "the_field_should_not_be_empty"
+                        response_data["warning"] = "the_field_should_not_be_empty"
+                if key_ == "delete":
+                    try:
+                        item_id_in_cart = int( body_data["item_id_in_cart"])
+                        print(type(item_id_in_cart))
+                        if ShoppingCart.objects.filter(id = item_id_in_cart).exist():
+                            ShoppingCart.objects.get(id = item_id_in_cart).delete()
+                            response_data["callback"] = "deletion_completed"
+                    except:
+                        raise
+
         else:
-            response_data["message"] = "UserAuthenticationFAIL"
+            response_data["warning"] = "UserAuthenticationFAIL"
         return HttpResponse(json.dumps(response_data,default=str), content_type='application/json')  # json.dumps(ensure_ascii=False,)
 
 #Сделать модальное окно вывода ошибок на сайте

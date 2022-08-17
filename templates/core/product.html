@@ -115,29 +115,24 @@
                 contentType: "application/json;charset=utf-8"
             })
                 .done(function (data) {
-                    console.log(data);
-                    console.log('ошибок нет')
                     green()
-                    productAdded_basket_dialog_show(data['message'])
+                    productAdded_basket_dialog_show(data["basket_dialog_response"])
                 })
                 .fail(function (data, jqXHR) {
+                    red()
                     console.log("Запрос не сработал " + data);
                     if (jqXHR.status && jqXHR.status === 800) {
                         console.log(jqXHR.responseText.error)
-                        red()
                     }
                     if (jqXHR.status && jqXHR.status === 500) {
                         console.log(jqXHR.status)
-                        red()
                         alert("Возникла ошибка на стороне сервера, попробуйте позже. Код ошибки" + " " + jqXHR.status)
                     }
                     if (jqXHR.status) {
                         console.log(jqXHR.status)
-                        red()
                     }
                     if (jqXHR.status && jqXHR.status === 401) {
                         console.log(jqXHR.status)
-                        red()
                         alert("Пользователь не авторизован. Код ошибки" + " " + jqXHR.status)
                     }
                 })
